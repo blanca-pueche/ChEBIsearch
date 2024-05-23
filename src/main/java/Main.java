@@ -20,10 +20,10 @@ import uk.ac.ebi.chebi.webapps.chebiWS.model.*;
 public class Main {
 
     private List<Identifier> listIdent;
-    static ChebiWebServiceClient client = new ChebiWebServiceClient();
+    private static ChebiWebServiceClient client = new ChebiWebServiceClient();
 
     public static void main(String[] args) throws ChebiException {
-        String filePath = "compound_identifiers.csv";
+        String filePath = "/home/maria/repos/compound_identifiers.csv";
         List<Identifier> identifierList = readCSV(filePath);
 
         List<Integer> chebiNumbers = new ArrayList<>();
@@ -36,8 +36,8 @@ public class Main {
                 List<Integer> chebi = extractNumbers(chebiNames);
                 if (!chebi.isEmpty()){
                     chebiNumbers.add(chebi.get(0));
-                    String sql = "insert into compounds_chebi (compound_id, chebi_id) values ("+compoundID+", "+chebi.get(0)+")";
-                    System.out.println(sql);
+                    String sql = "insert ignore into compounds_chebi (compound_id, chebi_id) values ("+compoundID+", "+chebi.get(0)+");";
+                    //System.out.println(sql);
                     writeToFile(sql, "outputFile.txt");
                 }
             } catch (ChebiException e) {
