@@ -1,6 +1,10 @@
 import java.io.*;
 import java.net.HttpURLConnection;
 import java.net.URL;
+import java.sql.Connection;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.logging.Level;
@@ -36,7 +40,7 @@ public class Main {
                 List<Integer> chebi = extractNumbers(chebiNames);
                 if (!chebi.isEmpty()){
                     chebiNumbers.add(chebi.get(0));
-                    String sql = "insert into compounds_chebi (compound_id, chebi_id) values ("+compoundID+", "+chebi.get(0)+")";
+                    String sql = "Insert IGNORE into compounds_chebi (compound_id, chebi_id) values ("+compoundID+", "+chebi.get(0)+")";
                     System.out.println(sql);
                     writeToFile(sql, "outputFile.txt");
                 }
@@ -47,6 +51,20 @@ public class Main {
             }
         }
         //System.out.println(chebiNumbers);
+    }
+
+    //TODO: WHAT DO I LOOK FOR
+    public static String getChebiIDFromDB(Connection connection, String chebiNumber) throws SQLException {
+        String query = "SELECT chebi_accession FROM compounds WHERE chebi_accession = ?";
+        try (PreparedStatement preparedStatement = connection.prepareStatement(query)) {
+            preparedStatement.setString(1, chebiNumber);
+            try (ResultSet resultSet = preparedStatement.executeQuery()) {
+                if (resultSet.next()) {
+                    return resultSet.getString("chebi_accession");
+                }
+            }
+        }
+        return null;
     }
 
     public static void writeToFile(String content, String outputFilePath) {
