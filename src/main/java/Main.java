@@ -78,7 +78,6 @@ public class Main {
      * @return chebId if it was found.
      * @throws exceptions.ChebiException
      */
-    //TODO use this
     public static Integer getChebiFromIdentifiers(Identifier identifiers) throws ChebiException {
         Integer chebiIdResult = null;
         String smiles = identifiers.getSmiles();
