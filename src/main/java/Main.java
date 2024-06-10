@@ -1,6 +1,10 @@
 import java.io.*;
 import java.net.HttpURLConnection;
 import java.net.URL;
+import java.sql.Connection;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.logging.Level;
@@ -32,14 +36,10 @@ public class Main {
             //System.out.println(identifier);
             int compoundID = identifier.getCompoundID();
             try {
-                List<String> chebiNames = getChemicalNames(identifier.getInchi_key());
-                List<Integer> chebi = extractNumbers(chebiNames);
-                if (!chebi.isEmpty()){
-                    chebiNumbers.add(chebi.get(0));
-                    String sql = "insert ignore into compounds_chebi (compound_id, chebi_id) values ("+compoundID+", "+chebi.get(0)+");";
+                Integer chebi = getChebiFromIdentifiers(identifier);
+                    String sql = "insert ignore into compounds_chebi (compound_id, chebi_id) values ("+compoundID+", "+chebi+");";
                     //System.out.println(sql);
                     writeToFile(sql, "outputFile.txt");
-                }
             } catch (ChebiException e) {
                 System.out.println("Error processing identifier: " + identifier + ". " + e.getMessage());
             } catch (Exception e) {
@@ -78,6 +78,7 @@ public class Main {
      * @return chebId if it was found.
      * @throws exceptions.ChebiException
      */
+    //TODO use this
     public static Integer getChebiFromIdentifiers(Identifier identifiers) throws ChebiException {
         Integer chebiIdResult = null;
         String smiles = identifiers.getSmiles();
@@ -88,7 +89,7 @@ public class Main {
         }
         try {
 
-            LiteEntityList querySMILESResult = client.getStructureSearch(smiles, StructureType.SMILES, StructureSearchCategory.IDENTITY, 100, 0.90F);
+            LiteEntityList querySMILESResult = client.getStructureSearch(smiles, StructureType.SMILES, StructureSearchCategory.IDENTITY, 10, 0.90F);
             List<LiteEntity> querySMILESList = querySMILESResult.getListElement();
             for (LiteEntity chebiEntity : querySMILESList) {
                 String chebId = chebiEntity.getChebiId();
