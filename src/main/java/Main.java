@@ -22,7 +22,7 @@ public class Main {
     private List<Identifier> listIdent;
     private static ChebiWebServiceClient client = new ChebiWebServiceClient();
 
-    public static void main(String[] args) throws ChebiException {
+    public static void main(String[] args) {
         String filePath = "/home/maria/repos/compound_identifiers.csv";
         List<Identifier> identifierList = readCSV(filePath);
 
@@ -32,18 +32,15 @@ public class Main {
             //System.out.println(identifier);
             int compoundID = identifier.getCompoundID();
             try {
-                List<String> chebiNames = getChemicalNames(identifier.getInchi_key());
-                List<Integer> chebi = extractNumbers(chebiNames);
-                if (!chebi.isEmpty()){
-                    chebiNumbers.add(chebi.get(0));
-                    String sql = "insert ignore into compounds_chebi (compound_id, chebi_id) values ("+compoundID+", "+chebi.get(0)+");";
-                    //System.out.println(sql);
+                Integer chebi = getChebiFromIdentifiers(identifier);
+                    String sql = "insert ignore into compounds_chebi (compound_id, chebi_id) values ("+compoundID+", "+chebi+");";
+                   // System.out.println(sql);
                     writeToFile(sql, "outputFile.txt");
-                }
+
             } catch (ChebiException e) {
                 System.out.println("Error processing identifier: " + identifier + ". " + e.getMessage());
             } catch (Exception e) {
-                throw new RuntimeException(e);
+                System.out.println("Error processing due to network??: " + identifier + ". " + e.getMessage());
             }
         }
         //System.out.println(chebiNumbers);
