@@ -48,7 +48,7 @@ public class Main {
 
                     writeToFile(sql, "outputFile.txt");
             } catch (ChebiException e) {
-                //TODO: search in db
+                //search in db
                 System.out.println("------------------------------------using db");
                 // Database credentials
                 String url = "jdbc:mysql://localhost:3306/chebi";
@@ -135,7 +135,6 @@ public class Main {
                 }
             }
         } catch (ChebiWebServiceFault_Exception ex) {
-            // TODO: TRY TO ACCESS THE DATABASE BY INCHI
 
             System.out.println("CHEBI STRUCTURE WRONG: " + identifiers);
             Logger.getLogger(ChebiDatabase.class.getName()).log(Level.SEVERE, null, ex);
