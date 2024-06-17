@@ -26,12 +26,14 @@ import java.sql.DriverManager;
 import java.sql.ResultSet;
 import java.sql.Statement;
 
+import java.util.Random;
+
 public class Main {
 
     private List<Identifier> listIdent;
     private static ChebiWebServiceClient client = new ChebiWebServiceClient();
 
-    public static void main(String[] args) throws ClassNotFoundException, SQLException {
+    /*public static void main(String[] args) throws ClassNotFoundException, SQLException {
         //String filePath = "/home/maria/repos/compound_identifiers.csv";
         String filePath = "C:\\Users\\blanc\\OneDrive\\Escritorio\\compound_identifiers.csv";
 
@@ -49,30 +51,25 @@ public class Main {
                     writeToFile(sql, "outputFile.txt");
             } catch (ChebiException e) {
                 //search in db
-                System.out.println("------------------------------------using db");
-                // Database credentials
+                System.out.println("----Database search...");
                 String url = "jdbc:mysql://localhost:3306/chebi";
                 String user = "root";
                 String password = "root";
 
                 Class.forName("com.mysql.cj.jdbc.Driver");
-                // Open a connection
                 Connection conn = DriverManager.getConnection(url, user, password);
 
                 Statement stmt = conn.createStatement();
                 String sql1 = "SELECT compound_id FROM structures WHERE structure LIKE ?";
                 PreparedStatement pstmt = conn.prepareStatement(sql1);
                 pstmt.setString(1, identifier.getInchi());
-                // Execute query
+
                 ResultSet rs = pstmt.executeQuery();
-                // Extract data from result set
                 while (rs.next()) {
-                    // Retrieve by column name
                     Integer chebi = rs.getInt("compound_id");
                     String sql = "insert ignore into compounds_chebi (compound_id, chebi_id) values ("+compoundID+", "+chebi+");";
                     writeToFile(sql, "outputFile.txt");
                 }
-                // Clean-up environment
                 rs.close();
                 pstmt.close();
                 conn.close();
@@ -82,6 +79,78 @@ public class Main {
             }
         }
         //System.out.println(chebiNumbers);
+    }*/
+
+    public static void main(String[] args) throws ClassNotFoundException, SQLException {
+        //String filePath = "/home/maria/repos/compound_identifiers.csv";
+        String filePath = "C:\\Users\\blanc\\OneDrive\\Escritorio\\compound_identifiers.csv";
+
+        List<Identifier> identifierList = readCSV(filePath);
+
+        List<Integer> chebiNumbers = new ArrayList<>();
+
+        //Connection to compounds DDBB
+        String jdbcURL = "jdbc:mysql://localhost:3306/compounds";
+        String user = "root";
+        String password = "root";
+        //Connection to chebi DDBB
+        System.out.println("----Database search...");
+        String url = "jdbc:mysql://localhost:3306/chebi";
+        user = "root";
+        password = "root";
+        Class.forName("com.mysql.cj.jdbc.Driver");
+        Connection conn = DriverManager.getConnection(url, user, password);
+
+
+        // Print the data to verify
+        for (Identifier identifier : identifierList) {
+            //System.out.println(identifier);
+            int compoundID = identifier.getCompoundID();
+            try {
+                try (Connection connection = DriverManager.getConnection(jdbcURL, user, password)) {
+                    String sql = "SELECT * FROM compounds_chebi WHERE compound_id LIKE ?";
+
+                    try (PreparedStatement statement = connection.prepareStatement(sql)) {
+                        statement.setString(1, String.valueOf(compoundID));
+
+                        try (ResultSet resultSet = statement.executeQuery()) {
+                            if (resultSet.next()) { //It's already in the DDBB
+                                resultSet.close();
+                                statement.close();
+                                connection.close();
+                                break;
+                            } else { //It's NOT in the DDBB
+                                Statement stmt = conn.createStatement();
+                                String sql1 = "SELECT compound_id FROM structures WHERE structure LIKE ?";
+                                PreparedStatement pstmt = conn.prepareStatement(sql1);
+                                pstmt.setString(1, identifier.getInchi());
+
+                                ResultSet rs = pstmt.executeQuery();
+                                if (rs.next()) { //It's in the chebi DDBB
+                                    Integer chebi = rs.getInt("compound_id");
+                                    sql = "insert ignore into compounds_chebi (compound_id, chebi_id) values ("+compoundID+", "+chebi+");";
+                                    writeToFile(sql, "outputFile.txt");
+                                } else { //It's NOT in the chebi DDBB
+                                    Integer chebi = getChebiFromIdentifiers(identifier);
+                                    sql = "insert ignore into compounds_chebi (compound_id, chebi_id) values ("+compoundID+", "+chebi+");";
+                                    writeToFile(sql, "outputFile.txt");
+                                }
+                                rs.close();
+                                pstmt.close();
+                                conn.close();
+
+                                //sleep between searches
+                                Thread.sleep((new Random().nextInt(3) + 1) * 1000);
+                            }
+                        }
+                    }
+                } catch (SQLException e) {
+                    e.printStackTrace();
+                }
+            } catch (Exception e) {
+                System.out.println("Error processing due to network??: " + identifier + ". " + e.getMessage());
+            }
+        }
     }
 
     public static void writeToFile(String content, String outputFilePath) {
