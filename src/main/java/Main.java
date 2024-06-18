@@ -94,13 +94,11 @@ public class Main {
         String user = "root";
         String password = "root";
         //Connection to chebi DDBB
-        System.out.println("----Database search...");
         String url = "jdbc:mysql://localhost:3306/chebi";
         user = "root";
         password = "root";
         Class.forName("com.mysql.cj.jdbc.Driver");
         Connection conn = DriverManager.getConnection(url, user, password);
-
 
         // Print the data to verify
         for (Identifier identifier : identifierList) {
@@ -115,10 +113,11 @@ public class Main {
 
                         try (ResultSet resultSet = statement.executeQuery()) {
                             if (resultSet.next()) { //It's already in the DDBB
+                                System.out.println("----It's in the compounds_chebi DDBB...");
                                 resultSet.close();
                                 statement.close();
                                 connection.close();
-                                break;
+                                //break;
                             } else { //It's NOT in the DDBB
                                 Statement stmt = conn.createStatement();
                                 String sql1 = "SELECT compound_id FROM structures WHERE structure LIKE ?";
@@ -127,6 +126,7 @@ public class Main {
 
                                 ResultSet rs = pstmt.executeQuery();
                                 if (rs.next()) { //It's in the chebi DDBB
+                                    System.out.println("----Database search...");
                                     Integer chebi = rs.getInt("compound_id");
                                     sql = "insert ignore into compounds_chebi (compound_id, chebi_id) values ("+compoundID+", "+chebi+");";
                                     writeToFile(sql, "outputFile.txt");
@@ -138,15 +138,14 @@ public class Main {
                                 rs.close();
                                 pstmt.close();
                                 conn.close();
-
-                                //sleep between searches
-                                Thread.sleep((new Random().nextInt(3) + 1) * 1000);
                             }
                         }
                     }
                 } catch (SQLException e) {
                     e.printStackTrace();
                 }
+                //sleep between searches
+                Thread.sleep((new Random().nextInt(3) + 1) * 1000);
             } catch (Exception e) {
                 System.out.println("Error processing due to network??: " + identifier + ". " + e.getMessage());
             }
