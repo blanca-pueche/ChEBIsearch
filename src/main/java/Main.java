@@ -90,54 +90,53 @@ public class Main {
         List<Integer> chebiNumbers = new ArrayList<>();
 
         //Connection to compounds DDBB
-        String jdbcURL = "jdbc:mysql://localhost:3306/compounds";
-        String user = "root";
-        String password = "root";
+        String jdbcURLCMM = "jdbc:mysql://localhost:3306/compounds";
+        String user = "alberto";
+        String password = "alberto";
         //Connection to chebi DDBB
-        String url = "jdbc:mysql://localhost:3306/chebi";
+        String jdbcURLLocalChebi = "jdbc:mysql://localhost:3306/chebi";
         user = "root";
         password = "root";
         Class.forName("com.mysql.cj.jdbc.Driver");
-        Connection conn = DriverManager.getConnection(url, user, password);
+        Connection chebiConnection = DriverManager.getConnection(jdbcURLLocalChebi, user, password);
 
         // Print the data to verify
         for (Identifier identifier : identifierList) {
             //System.out.println(identifier);
             int compoundID = identifier.getCompoundID();
             try {
-                try (Connection connection = DriverManager.getConnection(jdbcURL, user, password)) {
-                    String sql = "SELECT * FROM compounds_chebi WHERE compound_id LIKE ?";
+                try (Connection CMMConnection = DriverManager.getConnection(jdbcURLCMM, user, password)) {
+                    String sqlInsertCMMDB = "SELECT * FROM compounds_chebi WHERE compound_id LIKE ?";
 
-                    try (PreparedStatement statement = connection.prepareStatement(sql)) {
-                        statement.setString(1, String.valueOf(compoundID));
+                    try (PreparedStatement CMMQueryStatement = CMMConnection.prepareStatement(sqlInsertCMMDB)) {
+                        CMMQueryStatement.setString(1, String.valueOf(compoundID));
 
-                        try (ResultSet resultSet = statement.executeQuery()) {
+                        try (ResultSet resultSet = CMMQueryStatement.executeQuery()) {
                             if (resultSet.next()) { //It's already in the DDBB
-                                System.out.println("----It's in the compounds_chebi DDBB...");
+                                System.out.println("----It's in the CMM DB...");
                                 resultSet.close();
-                                statement.close();
-                                connection.close();
+                                CMMQueryStatement.close();
+                                CMMConnection.close();
                                 //break;
-                            } else { //It's NOT in the DDBB
-                                Statement stmt = conn.createStatement();
+                            } else { //It's NOT in the CMM DB
                                 String sql1 = "SELECT compound_id FROM structures WHERE structure LIKE ?";
-                                PreparedStatement pstmt = conn.prepareStatement(sql1);
-                                pstmt.setString(1, identifier.getInchi());
+                                PreparedStatement chebi_db_query_statement = chebiConnection.prepareStatement(sql1);
+                                chebi_db_query_statement.setString(1, identifier.getInchi());
 
-                                ResultSet rs = pstmt.executeQuery();
+                                ResultSet rs = chebi_db_query_statement.executeQuery();
                                 if (rs.next()) { //It's in the chebi DDBB
                                     System.out.println("----Database search...");
                                     Integer chebi = rs.getInt("compound_id");
-                                    sql = "insert ignore into compounds_chebi (compound_id, chebi_id) values ("+compoundID+", "+chebi+");";
-                                    writeToFile(sql, "outputFile.txt");
+                                    sqlInsertCMMDB = "insert ignore into compounds_chebi (compound_id, chebi_id) values ("+compoundID+", "+chebi+");";
+                                    writeToFile(sqlInsertCMMDB, "outputFile.txt");
                                 } else { //It's NOT in the chebi DDBB
                                     Integer chebi = getChebiFromIdentifiers(identifier);
-                                    sql = "insert ignore into compounds_chebi (compound_id, chebi_id) values ("+compoundID+", "+chebi+");";
-                                    writeToFile(sql, "outputFile.txt");
+                                    sqlInsertCMMDB = "insert ignore into compounds_chebi (compound_id, chebi_id) values ("+compoundID+", "+chebi+");";
+                                    writeToFile(sqlInsertCMMDB, "outputFile.txt");
                                 }
                                 rs.close();
-                                pstmt.close();
-                                conn.close();
+                                chebi_db_query_statement.close();
+                                chebiConnection.close();
                             }
                         }
                     }
