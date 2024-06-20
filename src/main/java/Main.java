@@ -99,6 +99,7 @@ public class Main {
         Connection chebiConnection = DriverManager.getConnection(jdbcURLLocalChebi, user, password);
         Connection CMMConnection = DriverManager.getConnection(jdbcURLCMM, user, password);
         // Print the data to verify
+        // delete output file
         for (Identifier identifier : identifierList) {
             //System.out.println(identifier);
             int compoundID = identifier.getCompoundID();
@@ -109,7 +110,6 @@ public class Main {
 
                     try (ResultSet resultSet = CMMQueryStatement.executeQuery()) {
                         if (resultSet.next()) { //It's already in the DDBB
-                            System.out.println("----It's in the CMM DB...");
                             resultSet.close();
                             CMMQueryStatement.close();
                             //break;
@@ -120,12 +120,14 @@ public class Main {
 
                             ResultSet rs = chebi_db_query_statement.executeQuery();
                             if (rs.next()) { //It's in the chebi DDBB
-                                System.out.println("----Database search...");
+                                System.out.println("----LOCAL Database CHEBI search...");
                                 Integer chebi = rs.getInt("compound_id");
                                 sqlInsertCMMDB = "insert ignore into compounds_chebi (compound_id, chebi_id) values (" + compoundID + ", " + chebi + ");";
                                 writeToFile(sqlInsertCMMDB, "outputFile.txt");
                             } else { //It's NOT in the chebi DDBB
+                                System.out.println("----Client CHEBI search...");
                                 Integer chebi = getChebiFromIdentifiers(identifier);
+                                Thread.sleep((new Random().nextInt(3) + 1) * 1000);
                                 sqlInsertCMMDB = "insert ignore into compounds_chebi (compound_id, chebi_id) values (" + compoundID + ", " + chebi + ");";
                                 writeToFile(sqlInsertCMMDB, "outputFile.txt");
                             }
@@ -135,7 +137,7 @@ public class Main {
                     }
                 }
                 //sleep between searches
-                Thread.sleep((new Random().nextInt(3) + 1) * 1000);
+
             } catch (SQLException e) {
                 e.printStackTrace();
             } catch (Exception e) {
