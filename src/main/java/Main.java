@@ -83,7 +83,7 @@ public class Main {
 
     public static void main(String[] args) throws ClassNotFoundException, SQLException {
         //String filePath = "/home/maria/repos/compound_identifiers.csv";
-        String filePath = "C:\\Users\\blanc\\OneDrive\\Escritorio\\compound_identifiers.csv";
+        String filePath = "/home/ceu/research/repos/ChEBIsearch/compound_identifiers.csv";
 
         List<Identifier> identifierList = readCSV(filePath);
 
@@ -95,56 +95,49 @@ public class Main {
         String password = "alberto";
         //Connection to chebi DDBB
         String jdbcURLLocalChebi = "jdbc:mysql://localhost:3306/chebi";
-        user = "root";
-        password = "root";
         Class.forName("com.mysql.cj.jdbc.Driver");
         Connection chebiConnection = DriverManager.getConnection(jdbcURLLocalChebi, user, password);
-
+        Connection CMMConnection = DriverManager.getConnection(jdbcURLCMM, user, password);
         // Print the data to verify
         for (Identifier identifier : identifierList) {
             //System.out.println(identifier);
             int compoundID = identifier.getCompoundID();
             try {
-                try (Connection CMMConnection = DriverManager.getConnection(jdbcURLCMM, user, password)) {
-                    String sqlInsertCMMDB = "SELECT * FROM compounds_chebi WHERE compound_id LIKE ?";
+                String sqlInsertCMMDB = "SELECT * FROM compounds_chebi WHERE compound_id LIKE ?";
+                try (PreparedStatement CMMQueryStatement = CMMConnection.prepareStatement(sqlInsertCMMDB)) {
+                    CMMQueryStatement.setString(1, String.valueOf(compoundID));
 
-                    try (PreparedStatement CMMQueryStatement = CMMConnection.prepareStatement(sqlInsertCMMDB)) {
-                        CMMQueryStatement.setString(1, String.valueOf(compoundID));
+                    try (ResultSet resultSet = CMMQueryStatement.executeQuery()) {
+                        if (resultSet.next()) { //It's already in the DDBB
+                            System.out.println("----It's in the CMM DB...");
+                            resultSet.close();
+                            CMMQueryStatement.close();
+                            //break;
+                        } else { //It's NOT in the CMM DB
+                            String sql1 = "SELECT compound_id FROM structures WHERE structure LIKE ?";
+                            PreparedStatement chebi_db_query_statement = chebiConnection.prepareStatement(sql1);
+                            chebi_db_query_statement.setString(1, identifier.getInchi());
 
-                        try (ResultSet resultSet = CMMQueryStatement.executeQuery()) {
-                            if (resultSet.next()) { //It's already in the DDBB
-                                System.out.println("----It's in the CMM DB...");
-                                resultSet.close();
-                                CMMQueryStatement.close();
-                                CMMConnection.close();
-                                //break;
-                            } else { //It's NOT in the CMM DB
-                                String sql1 = "SELECT compound_id FROM structures WHERE structure LIKE ?";
-                                PreparedStatement chebi_db_query_statement = chebiConnection.prepareStatement(sql1);
-                                chebi_db_query_statement.setString(1, identifier.getInchi());
-
-                                ResultSet rs = chebi_db_query_statement.executeQuery();
-                                if (rs.next()) { //It's in the chebi DDBB
-                                    System.out.println("----Database search...");
-                                    Integer chebi = rs.getInt("compound_id");
-                                    sqlInsertCMMDB = "insert ignore into compounds_chebi (compound_id, chebi_id) values ("+compoundID+", "+chebi+");";
-                                    writeToFile(sqlInsertCMMDB, "outputFile.txt");
-                                } else { //It's NOT in the chebi DDBB
-                                    Integer chebi = getChebiFromIdentifiers(identifier);
-                                    sqlInsertCMMDB = "insert ignore into compounds_chebi (compound_id, chebi_id) values ("+compoundID+", "+chebi+");";
-                                    writeToFile(sqlInsertCMMDB, "outputFile.txt");
-                                }
-                                rs.close();
-                                chebi_db_query_statement.close();
-                                chebiConnection.close();
+                            ResultSet rs = chebi_db_query_statement.executeQuery();
+                            if (rs.next()) { //It's in the chebi DDBB
+                                System.out.println("----Database search...");
+                                Integer chebi = rs.getInt("compound_id");
+                                sqlInsertCMMDB = "insert ignore into compounds_chebi (compound_id, chebi_id) values (" + compoundID + ", " + chebi + ");";
+                                writeToFile(sqlInsertCMMDB, "outputFile.txt");
+                            } else { //It's NOT in the chebi DDBB
+                                Integer chebi = getChebiFromIdentifiers(identifier);
+                                sqlInsertCMMDB = "insert ignore into compounds_chebi (compound_id, chebi_id) values (" + compoundID + ", " + chebi + ");";
+                                writeToFile(sqlInsertCMMDB, "outputFile.txt");
                             }
+                            rs.close();
+                            chebi_db_query_statement.close();
                         }
                     }
-                } catch (SQLException e) {
-                    e.printStackTrace();
                 }
                 //sleep between searches
                 Thread.sleep((new Random().nextInt(3) + 1) * 1000);
+            } catch (SQLException e) {
+                e.printStackTrace();
             } catch (Exception e) {
                 System.out.println("Error processing due to network??: " + identifier + ". " + e.getMessage());
             }
@@ -175,7 +168,6 @@ public class Main {
     }
 
     /**
-     *
      * @param identifiers
      * @return chebId if it was found.
      * @throws exceptions.ChebiException
